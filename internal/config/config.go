@@ -17,6 +17,7 @@ type Config struct {
 	Docker     DockerConfig
 	Cloudflare CloudflareConfig
 	Controller ControllerConfig
+	Defaults   DefaultsConfig
 	ManagedBy  string
 	LogLevel   slog.Level
 }
@@ -42,6 +43,18 @@ type ControllerConfig struct {
 	ManageDNS    bool
 	DNSZones     []string
 	DeleteDNS    bool
+}
+
+// DefaultsConfig holds fallback templates for containers without hostname/service labels.
+type DefaultsConfig struct {
+	// HostnameTemplate is a Go template used when cloudflare.tunnel.hostname is missing (empty = disabled).
+	HostnameTemplate string
+	// AutoService enables deriving cloudflare.tunnel.service from the exposed port when the label is missing.
+	AutoService bool
+	// ServiceTemplate is a Go template used by AutoService (empty = built-in default).
+	ServiceTemplate string
+	// Network selects the Docker network whose IP is exposed to templates as .IP.
+	Network string
 }
 
 // Load parses configuration from environment variables and Docker secrets.
@@ -73,6 +86,10 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	deleteDNS, err := parseBoolEnv("SYNC_DELETE_DNS", false)
+	if err != nil {
+		return Config{}, err
+	}
+	autoService, err := parseBoolEnv("SYNC_AUTO_SERVICE", false)
 	if err != nil {
 		return Config{}, err
 	}
@@ -118,6 +135,12 @@ func Load() (Config, error) {
 			ManageDNS:    manageDNS,
 			DNSZones:     dnsZones,
 			DeleteDNS:    deleteDNS,
+		},
+		Defaults: DefaultsConfig{
+			HostnameTemplate: strings.TrimSpace(os.Getenv("SYNC_DEFAULT_HOSTNAME")),
+			AutoService:      autoService,
+			ServiceTemplate:  strings.TrimSpace(os.Getenv("SYNC_DEFAULT_SERVICE")),
+			Network:          strings.TrimSpace(os.Getenv("SYNC_DOCKER_NETWORK")),
 		},
 		ManagedBy: managedBy,
 		LogLevel:  logLevel,
