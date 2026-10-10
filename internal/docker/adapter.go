@@ -46,10 +46,29 @@ func (adapter *Adapter) ListRunningContainers(ctx context.Context) ([]ContainerI
 		if len(item.Names) > 0 {
 			name = strings.TrimPrefix(item.Names[0], "/")
 		}
+		ports := make([]PortInfo, 0, len(item.Ports))
+		for _, port := range item.Ports {
+			ports = append(ports, PortInfo{
+				PrivatePort: port.PrivatePort,
+				PublicPort:  port.PublicPort,
+				Type:        port.Type,
+			})
+		}
+		networks := map[string]string{}
+		if item.NetworkSettings != nil {
+			for networkName, endpoint := range item.NetworkSettings.Networks {
+				if endpoint == nil {
+					continue
+				}
+				networks[networkName] = endpoint.IPAddress
+			}
+		}
 		results = append(results, ContainerInfo{
-			ID:     item.ID,
-			Name:   name,
-			Labels: item.Labels,
+			ID:       item.ID,
+			Name:     name,
+			Labels:   item.Labels,
+			Ports:    ports,
+			Networks: networks,
 		})
 	}
 
