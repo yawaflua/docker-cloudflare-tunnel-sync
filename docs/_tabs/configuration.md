@@ -19,6 +19,8 @@ Docker Cloudflare Tunnel Sync is configured with environment variables or Docker
 | `DOCKER_HOST` | no | - | Docker daemon host. Standard Docker environment variable. |
 | `DOCKER_API_VERSION` | no | - | Docker API version override. |
 | `SYNC_POLL_INTERVAL` | no | `30s` | Controller poll interval. |
+| `SYNC_WATCH_EVENTS` | no | `true` | Also sync immediately when Docker reports container `start`/`die`/`destroy` events (works with a read-only socket). Polling keeps running as a fallback. |
+| `SYNC_EVENT_DEBOUNCE` | no | `2s` | Wait this long after the last Docker event before syncing, so a `docker compose up` burst triggers one sync. |
 | `SYNC_RUN_ONCE` | no | `false` | Run a single reconciliation and exit. |
 | `SYNC_DRY_RUN` | no | `false` | Log planned changes without applying them. |
 | `SYNC_MANAGED_TUNNEL` | no | `false` | Allow the controller to overwrite the tunnel ingress configuration. |

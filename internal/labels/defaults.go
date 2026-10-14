@@ -106,11 +106,16 @@ func (parser *Parser) templateData(container docker.ContainerInfo, port uint16) 
 	}
 }
 
-// resolveHostnames returns the base hostnames for a container: the explicit label when set,
+// resolveHostnames returns the base hostnames for a container: the explicit label when set
+// (a single hostname, a comma/space separated list, or Traefik-style Host(`...`) rules),
 // otherwise the rendered default hostname template.
 func (parser *Parser) resolveHostnames(container docker.ContainerInfo) ([]string, error) {
-	if hostname := strings.TrimSpace(container.Labels[LabelHost]); hostname != "" {
-		return []string{hostname}, nil
+	if value := strings.TrimSpace(container.Labels[LabelHost]); value != "" {
+		hostnames, err := splitHostnames(value)
+		if err != nil {
+			return nil, fmt.Errorf("container %s: %s %q: %w", container.Name, LabelHost, value, err)
+		}
+		return hostnames, nil
 	}
 	if parser.hostnameTemplate == nil {
 		return nil, fmt.Errorf("container %s: missing required %s label", container.Name, LabelHost)

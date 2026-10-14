@@ -157,11 +157,16 @@ func (parser *Parser) ParseContainers(containers []docker.ContainerInfo) ([]mode
 			originServerNameKey := LabelOriginServerName + "." + suffix
 			originNoTLSVerifyKey := LabelOriginNoTLSVerify + "." + suffix
 
-			hostname := strings.TrimSpace(container.Labels[hostnameKey])
+			hostnameValue := strings.TrimSpace(container.Labels[hostnameKey])
 			service := strings.TrimSpace(container.Labels[serviceKey])
 			path := strings.TrimSpace(container.Labels[pathKey])
-			if hostname == "" {
+			if hostnameValue == "" {
 				errors = append(errors, fmt.Errorf("container %s: %s cannot be empty; skipping", container.Name, hostnameKey))
+				continue
+			}
+			suffixHostnames, err := splitHostnames(hostnameValue)
+			if err != nil {
+				errors = append(errors, fmt.Errorf("container %s: %s %q: %w; skipping", container.Name, hostnameKey, hostnameValue, err))
 				continue
 			}
 			if service == "" {
@@ -185,16 +190,17 @@ func (parser *Parser) ParseContainers(containers []docker.ContainerInfo) ([]mode
 				errors = append(errors, err)
 			}
 
-			key := model.RouteKey{Hostname: hostname, Path: path}
-			if err := appendRouteSpec(&desired, desiredKeys, model.RouteSpec{
-				Key:              key,
-				Service:          service,
-				DNSZoneOverride:  dnsZone,
-				OriginServerName: originServerName,
-				NoTLSVerify:      originNoTLSVerify,
-				Source:           source,
-			}); err != nil {
-				errors = append(errors, err)
+			for _, hostname := range suffixHostnames {
+				if err := appendRouteSpec(&desired, desiredKeys, model.RouteSpec{
+					Key:              model.RouteKey{Hostname: hostname, Path: path},
+					Service:          service,
+					DNSZoneOverride:  dnsZone,
+					OriginServerName: originServerName,
+					NoTLSVerify:      originNoTLSVerify,
+					Source:           source,
+				}); err != nil {
+					errors = append(errors, err)
+				}
 			}
 		}
 	}

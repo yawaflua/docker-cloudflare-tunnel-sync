@@ -194,6 +194,8 @@ Main sections:
 | `DOCKER_HOST` | no | - | Docker daemon host (standard Docker env var). |
 | `DOCKER_API_VERSION` | no | - | Docker API version override. |
 | `SYNC_POLL_INTERVAL` | no | `30s` | Controller poll interval. |
+| `SYNC_WATCH_EVENTS` | no | `true` | Also sync immediately when Docker reports container `start`/`die`/`destroy` events (works with a read-only socket). Polling keeps running as a fallback. |
+| `SYNC_EVENT_DEBOUNCE` | no | `2s` | Wait this long after the last Docker event before syncing, so a `docker compose up` burst triggers one sync. |
 | `SYNC_RUN_ONCE` | no | `false` | Run a single reconciliation and exit. |
 | `SYNC_DRY_RUN` | no | `false` | Log changes without applying them. |
 | `SYNC_MANAGED_TUNNEL` | no | `false` | Allow this tool to overwrite the tunnel ingress configuration. |
@@ -229,7 +231,7 @@ All labels are explicit and namespaced. A container is only managed when `cloudf
 | Label | Required | Example | Description |
 | --- | --- | --- | --- |
 | `cloudflare.tunnel.enable` | yes | `true` | Opt-in flag for route creation. |
-| `cloudflare.tunnel.hostname` | yes* | `app.example.com` | Base route hostname. *Optional when `SYNC_DEFAULT_HOSTNAME` is set. |
+| `cloudflare.tunnel.hostname` | yes* | `app.example.com,app.example.org` | Base route hostname, or a comma-separated list of hostnames that share the base service. *Optional when `SYNC_DEFAULT_HOSTNAME` is set. |
 | `cloudflare.tunnel.service` | yes* | `http://api:8080` | Base route service/origin URL. *Optional when `SYNC_AUTO_SERVICE=true` (derived from the exposed port). |
 | `cloudflare.tunnel.dns.zone` | no | `dev.example.com` | Override automatic DNS zone selection for this route hostname. Useful when Cloudflare manages a delegated sub-zone. |
 | `cloudflare.tunnel.path` | no | `/api` | Optional base route path prefix (must start with `/`). |
@@ -253,6 +255,15 @@ All labels are explicit and namespaced. A container is only managed when `cloudf
 > A suffix route is created only when both `hostname.<suffix>` and `service.<suffix>` are set.
 > If one is missing, the controller logs a warning and skips that suffix.
 > Empty suffix labels (for example `cloudflare.tunnel.hostname.`) are ignored.
+
+Multiple hostnames for the same service can be given in one label as a comma/space separated list or as Traefik-style ``Host(`...`)`` rules. Each hostname becomes its own route (and DNS record). Repeating the same label key does **not** work: Docker labels are a map, so the last value wins.
+
+```yaml
+labels:
+  - "cloudflare.tunnel.enable=true"
+  - "cloudflare.tunnel.hostname=git.ywfl.dev,git.yawaflua.tech"
+  - "cloudflare.tunnel.service=http://gitea:3000"
+```
 
 When either origin label is omitted for a managed route, the corresponding `originRequest` key is removed during reconciliation. Unmanaged `originRequest` keys are preserved.
 

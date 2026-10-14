@@ -17,3 +17,10 @@ type PortInfo struct {
 	PublicPort  uint16
 	Type        string
 }
+
+// ContainerEvent is a container lifecycle event reported by the Docker daemon.
+type ContainerEvent struct {
+	ID     string
+	Name   string
+	Action string
+}

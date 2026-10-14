@@ -36,13 +36,17 @@ type CloudflareConfig struct {
 
 type ControllerConfig struct {
 	PollInterval time.Duration
-	RunOnce      bool
-	DryRun       bool
-	ManageTunnel bool
-	ManageAccess bool
-	ManageDNS    bool
-	DNSZones     []string
-	DeleteDNS    bool
+	// WatchEvents triggers a sync when Docker reports container start/die/destroy events.
+	WatchEvents bool
+	// EventDebounce is how long to wait after the last Docker event before syncing.
+	EventDebounce time.Duration
+	RunOnce       bool
+	DryRun        bool
+	ManageTunnel  bool
+	ManageAccess  bool
+	ManageDNS     bool
+	DNSZones      []string
+	DeleteDNS     bool
 }
 
 // DefaultsConfig holds fallback templates for containers without hostname/service labels.
@@ -63,6 +67,18 @@ func Load() (Config, error) {
 	parsedInterval, err := time.ParseDuration(pollInterval)
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid SYNC_POLL_INTERVAL: %w", err)
+	}
+
+	watchEvents, err := parseBoolEnv("SYNC_WATCH_EVENTS", true)
+	if err != nil {
+		return Config{}, err
+	}
+	parsedDebounce, err := time.ParseDuration(getEnvDefault("SYNC_EVENT_DEBOUNCE", "2s"))
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid SYNC_EVENT_DEBOUNCE: %w", err)
+	}
+	if parsedDebounce <= 0 {
+		return Config{}, fmt.Errorf("invalid SYNC_EVENT_DEBOUNCE: must be positive")
 	}
 
 	runOnce, err := parseBoolEnv("SYNC_RUN_ONCE", false)
@@ -127,14 +143,16 @@ func Load() (Config, error) {
 			BaseURL:   os.Getenv("CF_API_BASE_URL"),
 		},
 		Controller: ControllerConfig{
-			PollInterval: parsedInterval,
-			RunOnce:      runOnce,
-			DryRun:       dryRun,
-			ManageTunnel: manageTunnel,
-			ManageAccess: manageAccess,
-			ManageDNS:    manageDNS,
-			DNSZones:     dnsZones,
-			DeleteDNS:    deleteDNS,
+			PollInterval:  parsedInterval,
+			WatchEvents:   watchEvents,
+			EventDebounce: parsedDebounce,
+			RunOnce:       runOnce,
+			DryRun:        dryRun,
+			ManageTunnel:  manageTunnel,
+			ManageAccess:  manageAccess,
+			ManageDNS:     manageDNS,
+			DNSZones:      dnsZones,
+			DeleteDNS:     deleteDNS,
 		},
 		Defaults: DefaultsConfig{
 			HostnameTemplate: strings.TrimSpace(os.Getenv("SYNC_DEFAULT_HOSTNAME")),

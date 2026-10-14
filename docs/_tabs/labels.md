@@ -19,11 +19,20 @@ cloudflare.tunnel.enable: "true"
 | Label | Required | Description |
 | --- | --- | --- |
 | `cloudflare.tunnel.enable` | yes | Enables Cloudflare Tunnel management for this container. |
-| `cloudflare.tunnel.hostname` | yes* | Public hostname for the route. *Optional when `SYNC_DEFAULT_HOSTNAME` is set. |
+| `cloudflare.tunnel.hostname` | yes* | Public hostname for the route, or a comma-separated list of hostnames that share the service. *Optional when `SYNC_DEFAULT_HOSTNAME` is set. |
 | `cloudflare.tunnel.service` | yes* | Origin service URL used by Cloudflare Tunnel. *Optional when `SYNC_AUTO_SERVICE=true` (derived from the exposed port). |
 | `cloudflare.tunnel.port` | no | Port used by the default service template instead of the auto-detected exposed port. |
 | `cloudflare.tunnel.network` | no | Network used for `{{ .IP }}` in the default service template. |
 | `cloudflare.tunnel.path` | no | Optional path prefix. Must start with `/`. |
+
+Multiple hostnames for the same service can be given in one label as a comma/space separated list or as Traefik-style ``Host(`...`)`` rules. Each hostname becomes its own route (and DNS record). Repeating the same label key does **not** work: Docker labels are a map, so the last value wins.
+
+```yaml
+labels:
+  - "cloudflare.tunnel.enable=true"
+  - "cloudflare.tunnel.hostname=git.ywfl.dev,git.yawaflua.tech"
+  - "cloudflare.tunnel.service=http://gitea:3000"
+```
 
 Example:
 
